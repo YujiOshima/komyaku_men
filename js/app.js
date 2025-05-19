@@ -15,6 +15,50 @@ const EYE_TYPES = {
     MULTIPLE: 'multiple' // 複数の目
 };
 
+// 顔追跡のための定数
+const TRACKING = {
+    IOU_THRESHOLD: 0.5,  // IOUがこの値以上なら同じ顔と判断
+    MAX_AGE: 10          // 何フレーム検出されなかったら消すか
+};
+
+/**
+ * 2つのバウンディングボックス間のIOU（Intersection over Union）を計算
+ * @param {Object} box1 - 1つ目のバウンディングボックス {xMin, yMin, width, height}
+ * @param {Object} box2 - 2つ目のバウンディングボックス {xMin, yMin, width, height}
+ * @returns {number} IOU値（0～1）
+ */
+function calculateIOU(box1, box2) {
+    // 各ボックスの座標を計算
+    const box1XMax = box1.xMin + box1.width;
+    const box1YMax = box1.yMin + box1.height;
+    const box2XMax = box2.xMin + box2.width;
+    const box2YMax = box2.yMin + box2.height;
+    
+    // 交差領域の座標を計算
+    const xMin = Math.max(box1.xMin, box2.xMin);
+    const yMin = Math.max(box1.yMin, box2.yMin);
+    const xMax = Math.min(box1XMax, box2XMax);
+    const yMax = Math.min(box1YMax, box2YMax);
+    
+    // 交差領域がない場合は0を返す
+    if (xMax < xMin || yMax < yMin) {
+        return 0;
+    }
+    
+    // 交差領域の面積を計算
+    const intersectionArea = (xMax - xMin) * (yMax - yMin);
+    
+    // 各ボックスの面積を計算
+    const box1Area = box1.width * box1.height;
+    const box2Area = box2.width * box2.height;
+    
+    // 合併領域の面積を計算
+    const unionArea = box1Area + box2Area - intersectionArea;
+    
+    // IOUを計算して返す
+    return intersectionArea / unionArea;
+}
+
 // アプリケーションのメインクラス
 class MyakuMyakuApp {
     constructor() {
@@ -38,6 +82,10 @@ class MyakuMyakuApp {
         this.videoStream = null;
         this.modelLoaded = false;
         this.facesDetected = 0;
+        
+        // 顔追跡のための状態管理
+        this.trackedFaces = []; // 追跡中の顔情報を保持する配列
+        this.nextFaceId = 1;    // 顔に割り当てるID（ユニーク）
         
         // イベントリスナーの設定
         this.startButton.addEventListener('click', () => this.start());
@@ -202,7 +250,135 @@ class MyakuMyakuApp {
         this.startButton.disabled = false;
         this.stopButton.disabled = true;
         
+        // 追跡情報をリセット
+        this.trackedFaces = [];
+        this.nextFaceId = 1;
+        
         this.updateStatus('カメラを停止しました');
+    }
+    
+    /**
+     * 検出された顔と追跡中の顔を照合し、追跡情報を更新する
+     * @param {Array} detectedFaces - 現在のフレームで検出された顔の配列
+     * @returns {Array} 更新された追跡顔情報の配列
+     */
+    updateTrackedFaces(detectedFaces) {
+        // 検出された顔がない場合、追跡中の顔の年齢を増やす
+        if (detectedFaces.length === 0) {
+            this.trackedFaces.forEach(face => {
+                face.age += 1;
+            });
+            
+            // 一定期間検出されなかった顔を削除
+            this.trackedFaces = this.trackedFaces.filter(face => face.age < TRACKING.MAX_AGE);
+            return this.trackedFaces;
+        }
+        
+        // 各追跡顔に対して、マッチングスコアを計算
+        const matchMatrix = [];
+        
+        for (let i = 0; i < this.trackedFaces.length; i++) {
+            matchMatrix[i] = [];
+            const trackedFace = this.trackedFaces[i];
+            
+            for (let j = 0; j < detectedFaces.length; j++) {
+                const detectedFace = detectedFaces[j];
+                const box1 = {
+                    xMin: trackedFace.box.xMin,
+                    yMin: trackedFace.box.yMin,
+                    width: trackedFace.box.width,
+                    height: trackedFace.box.height
+                };
+                
+                const box2 = {
+                    xMin: detectedFace.box.xMin,
+                    yMin: detectedFace.box.yMin,
+                    width: detectedFace.box.width,
+                    height: detectedFace.box.height
+                };
+                
+                const iou = calculateIOU(box1, box2);
+                matchMatrix[i][j] = iou;
+            }
+        }
+        
+        // 追跡中の顔の使用状態を追跡
+        const assignedTracks = new Set();
+        const assignedDetections = new Set();
+        
+        // IOUが閾値以上のペアをマッチングさせる
+        for (let i = 0; i < this.trackedFaces.length; i++) {
+            for (let j = 0; j < detectedFaces.length; j++) {
+                if (matchMatrix[i][j] >= TRACKING.IOU_THRESHOLD) {
+                    if (!assignedTracks.has(i) && !assignedDetections.has(j)) {
+                        // 追跡中の顔を更新
+                        const trackedFace = this.trackedFaces[i];
+                        const detectedFace = detectedFaces[j];
+                        
+                        // 位置情報を更新
+                        trackedFace.box = {
+                            xMin: detectedFace.box.xMin,
+                            yMin: detectedFace.box.yMin,
+                            width: detectedFace.box.width,
+                            height: detectedFace.box.height
+                        };
+                        
+                        // 顔のランドマークを更新
+                        trackedFace.landmarks = detectedFace.landmarks;
+                        
+                        // 年齢をリセット
+                        trackedFace.age = 0;
+                        
+                        assignedTracks.add(i);
+                        assignedDetections.add(j);
+                    }
+                }
+            }
+        }
+        
+        // 未割り当ての検出顔を新規追跡顔として追加
+        for (let j = 0; j < detectedFaces.length; j++) {
+            if (!assignedDetections.has(j)) {
+                const detectedFace = detectedFaces[j];
+                
+                // 新しい追跡顔を作成
+                const newTrackedFace = {
+                    id: this.nextFaceId++,
+                    box: {
+                        xMin: detectedFace.box.xMin,
+                        yMin: detectedFace.box.yMin,
+                        width: detectedFace.box.width,
+                        height: detectedFace.box.height
+                    },
+                    landmarks: detectedFace.landmarks,
+                    age: 0,
+                    // ミャクミャクの属性をランダムに設定
+                    myakuAttributes: {
+                        color: Math.random() < 0.5 ? COLORS.RED : COLORS.BLUE,
+                        eyeType: Math.random() < 0.5 ? EYE_TYPES.SINGLE : EYE_TYPES.MULTIPLE,
+                        eyeCount: Math.floor(Math.random() * 3) + 1, // 1～3個の目
+                        scale: 0.9 + Math.random() * 0.2, // 0.9～1.1のスケール
+                        // 目の配置のバリエーションを増やすための追加パラメータ
+                        eyeOffset: Math.random() * 0.2, // 目の位置のランダムなオフセット
+                        rotationOffset: Math.random() * Math.PI // 回転のランダムなオフセット
+                    }
+                };
+                
+                this.trackedFaces.push(newTrackedFace);
+            }
+        }
+        
+        // 未割り当ての追跡顔の年齢を増やす
+        for (let i = 0; i < this.trackedFaces.length; i++) {
+            if (!assignedTracks.has(i)) {
+                this.trackedFaces[i].age += 1;
+            }
+        }
+        
+        // 一定期間検出されなかった顔を削除
+        this.trackedFaces = this.trackedFaces.filter(face => face.age < TRACKING.MAX_AGE);
+        
+        return this.trackedFaces;
     }
     
     // 顔検出ループ
@@ -211,26 +387,29 @@ class MyakuMyakuApp {
         
         try {
             // 顔検出の実行
-            const faces = await this.faceDetector.estimateFaces(this.video);
+            const detectedFaces = await this.faceDetector.estimateFaces(this.video);
             
             // キャンバスのクリア
             this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
             
             // 検出された顔の数を更新
-            if (faces.length > 0 && this.facesDetected === 0) {
-                this.updateStatus(`${faces.length}人の顔を検出しました！`);
-                this.facesDetected = faces.length;
-            } else if (faces.length > this.facesDetected) {
-                this.updateStatus(`${faces.length}人の顔を検出しました！`);
-                this.facesDetected = faces.length;
-            } else if (faces.length === 0 && this.facesDetected > 0) {
+            if (detectedFaces.length > 0 && this.facesDetected === 0) {
+                this.updateStatus(`${detectedFaces.length}人の顔を検出しました！`);
+                this.facesDetected = detectedFaces.length;
+            } else if (detectedFaces.length > this.facesDetected) {
+                this.updateStatus(`${detectedFaces.length}人の顔を検出しました！`);
+                this.facesDetected = detectedFaces.length;
+            } else if (detectedFaces.length === 0 && this.facesDetected > 0) {
                 this.updateStatus('顔を検出できません。カメラに顔を向けてください。');
                 this.facesDetected = 0;
             }
             
-            // 検出された各顔に対してミャクミャクを描画
-            faces.forEach(face => {
-                this.drawMyakuMyaku(face);
+            // 追跡情報を更新
+            const trackedFaces = this.updateTrackedFaces(detectedFaces);
+            
+            // 追跡中の各顔に対してミャクミャクを描画
+            trackedFaces.forEach(face => {
+                this.drawTrackedMyakuMyaku(face);
             });
             
             // 次のフレームで再度実行
@@ -248,6 +427,60 @@ class MyakuMyakuApp {
             // 一時的なエラーの場合は継続
             requestAnimationFrame(() => this.detectFaces());
         }
+    }
+    
+    /**
+     * 追跡中の顔に対してミャクミャクを描画
+     * @param {Object} trackedFace - 追跡中の顔情報
+     */
+    drawTrackedMyakuMyaku(trackedFace) {
+        const { box, myakuAttributes } = trackedFace;
+        
+        // 顔の中心座標
+        const centerX = box.xMin + box.width / 2;
+        const centerY = box.yMin + box.height / 2;
+        
+        // 顔のサイズに基づいてミャクミャクのサイズを決定
+        const size = Math.max(box.width, box.height) * myakuAttributes.scale;
+        
+        // ミャクミャクの本体（円）を描画
+        this.ctx.fillStyle = `rgb(${myakuAttributes.color.r}, ${myakuAttributes.color.g}, ${myakuAttributes.color.b})`;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, size * 0.6, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // 目の色（赤なら青、青なら赤）
+        const eyeColor = myakuAttributes.color === COLORS.RED ? COLORS.BLUE : COLORS.RED;
+        
+        if (myakuAttributes.eyeType === EYE_TYPES.SINGLE) {
+            // 単一の大きな目を描画
+            this.drawEye(centerX, centerY, size * 0.3, eyeColor, myakuAttributes.color);
+        } else {
+            // 複数の目を描画
+            // 中央に小さめの目
+            this.drawEye(centerX, centerY, size * 0.2, eyeColor, myakuAttributes.color);
+            
+            // 周囲に追加の目を描画
+            const numExtraEyes = myakuAttributes.eyeCount;
+            for (let i = 0; i < numExtraEyes; i++) {
+                // 固定の角度と距離（追跡中は同じパターンを維持）
+                const angle = (i * (2 * Math.PI / numExtraEyes)) + myakuAttributes.rotationOffset;
+                const distance = size * (0.7 + myakuAttributes.eyeOffset);
+                
+                // 小さな目の位置
+                const eyeX = centerX + Math.cos(angle) * distance;
+                const eyeY = centerY + Math.sin(angle) * distance;
+                const eyeSize = size * (0.2 + myakuAttributes.eyeOffset * 0.5);
+                
+                // 小さな目の描画
+                this.drawEye(eyeX, eyeY, eyeSize, eyeColor, myakuAttributes.color);
+            }
+        }
+        
+        // デバッグ情報（開発時のみ）
+        // this.ctx.fillStyle = 'white';
+        // this.ctx.font = '12px Arial';
+        // this.ctx.fillText(`ID: ${trackedFace.id}`, centerX - 20, centerY + size * 0.6 + 20);
     }
     
     // ミャクミャクの描画
