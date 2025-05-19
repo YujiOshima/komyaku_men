@@ -452,6 +452,23 @@ class MyakuMyakuApp {
         // 顔のサイズに基づいてミャクミャクのサイズを決定
         const size = Math.max(box.width, box.height) * myakuAttributes.scale;
         
+        // --- 複数目・体モードのとき、3～8秒間隔で周囲の目と体の数を1～3個でランダムに増減 ---
+        if (myakuAttributes.eyeType === EYE_TYPES.MULTIPLE) {
+            const now = performance.now ? performance.now() : Date.now();
+            if (!myakuAttributes._eyeCountChangeTime) {
+                myakuAttributes._eyeCountChangeTime = now + 3000 + Math.random() * 5000; // 3～8秒後
+            }
+            if (now > myakuAttributes._eyeCountChangeTime) {
+                // 1～3個（中央以外）
+                let current = myakuAttributes.eyeCount || 1;
+                let next = current + (Math.random() < 0.5 ? 1 : -1);
+                if (next < 1) next = 1;
+                if (next > 3) next = 3;
+                myakuAttributes.eyeCount = next;
+                myakuAttributes._eyeCountChangeTime = now + 3000 + Math.random() * 5000;
+            }
+        }
+        
         if (myakuAttributes.eyeType === EYE_TYPES.SINGLE) {
             // bodyStates[0]を単体体用に確保
             if (!myakuAttributes.bodyStates || myakuAttributes.bodyStates.length !== 1) {
@@ -511,9 +528,10 @@ class MyakuMyakuApp {
                 // 初期化（中央＋周囲）
                 myakuAttributes.bodyStates = [];
                 // 中央
+                const color = Math.random() > 0.5 ? COLORS.RED : COLORS.BLUE;
                 myakuAttributes.bodyStates.push({
                     eyeRatio: 0.3 + Math.random() * 0.2,
-                    color: Math.random() > 0.5 ? COLORS.RED : COLORS.BLUE,
+                    color: color,
                 });
                 // 周囲
                 for (let i = 0; i < numExtraBodies; i++) {
@@ -522,7 +540,7 @@ class MyakuMyakuApp {
                         distanceRatio: 0.4 + Math.random() * 0.3, // 0.4～0.7
                         bodySizeRatio: 0.6 + Math.random() * 0.4, // 0.6～1.0
                         eyeRatio: 0.3 + Math.random() * 0.5,
-                        color: Math.random() > 0.5 ? COLORS.RED : COLORS.BLUE,
+                        color: color,
                     });
                 }
             } else {
