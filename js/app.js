@@ -581,10 +581,6 @@ class MyakuMyakuApp {
                 centralState.eyeY = (centralState.eyeY ?? centralState.drawY) + dy;
             }
             this.drawBody(centralState.drawX, centralState.drawY, centralBodySize, centralState.color, centralState.eyeRatio);
-            // 目のサイズを体のサイズに対する比率で計算
-            const centralEyeSize = centralBodySize * centralState.eyeRatio;
-            // 目を描画（体中心＋オフセット）
-            this.drawEye(centralState.eyeX, centralState.eyeY, centralEyeSize);
             // 周囲
             for (let i = 0; i < numExtraBodies; i++) {
                 const s = myakuAttributes.bodyStates[i+1];
@@ -635,8 +631,10 @@ class MyakuMyakuApp {
                 // 目を描画（体中心＋オフセット）
                 this.drawEye(s.eyeX, s.eyeY, eyeSize);
             }
-            // 目を描画
-            this.drawEye(centerX, centerY, centralBodySize * centralState.eyeRatio);
+            // 目のサイズを体のサイズに対する比率で計算
+            const centralEyeSize = centralBodySize * centralState.eyeRatio;
+            // 目を描画（体中心＋オフセット）
+            this.drawEye(centralState.eyeX, centralState.eyeY, centralEyeSize);
 // --- 座標・サイズを最大変化量だけ近づける ---
 function approachWithLimit(prev, target, maxDelta) {
     const diff = target - prev;
