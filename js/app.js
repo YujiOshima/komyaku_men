@@ -443,37 +443,40 @@ class MyakuMyakuApp {
         // 顔のサイズに基づいてミャクミャクのサイズを決定
         const size = Math.max(box.width, box.height) * myakuAttributes.scale;
         
-        // ミャクミャクの本体（円）を描画
-        this.ctx.fillStyle = `rgb(${myakuAttributes.color.r}, ${myakuAttributes.color.g}, ${myakuAttributes.color.b})`;
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, size * 0.6, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // 目の色（赤なら青、青なら赤）
-        const eyeColor = myakuAttributes.color === COLORS.RED ? COLORS.BLUE : COLORS.RED;
-        
         if (myakuAttributes.eyeType === EYE_TYPES.SINGLE) {
-            // 単一の大きな目を描画
-            this.drawEye(centerX, centerY, size * 0.3, eyeColor, myakuAttributes.color);
+            // 単一の体と目を描画
+            const bodySize = size * 0.6;
+            this.drawBodyWithEye(centerX, centerY, bodySize, myakuAttributes.color, 0.5); // 目のサイズは体の50%
         } else {
-            // 複数の目を描画
-            // 中央に小さめの目
-            this.drawEye(centerX, centerY, size * 0.2, eyeColor, myakuAttributes.color);
+            // 複数の体と目を描画
+            // 中央の体は少し小さめに
+            const centralBodySize = size * 0.45; // Singleの時より小さく
             
-            // 周囲に追加の目を描画
-            const numExtraEyes = myakuAttributes.eyeCount;
-            for (let i = 0; i < numExtraEyes; i++) {
+            // 中央の体と目を描画（目のサイズは体の30%～80%でランダム）
+            const centralEyeRatio = 0.3 + Math.random() * 0.5; // 30%～80%
+            this.drawBodyWithEye(centerX, centerY, centralBodySize, myakuAttributes.color, centralEyeRatio);
+            
+            // 周囲に追加の体と目を描画
+            const numExtraBodies = myakuAttributes.eyeCount;
+            for (let i = 0; i < numExtraBodies; i++) {
                 // 固定の角度と距離（追跡中は同じパターンを維持）
-                const angle = (i * (2 * Math.PI / numExtraEyes)) + myakuAttributes.rotationOffset;
-                const distance = size * (0.7 + myakuAttributes.eyeOffset);
+                const angle = (i * (2 * Math.PI / numExtraBodies)) + myakuAttributes.rotationOffset;
                 
-                // 小さな目の位置
-                const eyeX = centerX + Math.cos(angle) * distance;
-                const eyeY = centerY + Math.sin(angle) * distance;
-                const eyeSize = size * (0.2 + myakuAttributes.eyeOffset * 0.5);
+                // 顔領域内のランダムな位置に配置
+                const distance = size * (0.4 + Math.random() * 0.3); // 顔領域内に収まるよう調整
                 
-                // 小さな目の描画
-                this.drawEye(eyeX, eyeY, eyeSize, eyeColor, myakuAttributes.color);
+                // 体の位置
+                const bodyX = centerX + Math.cos(angle) * distance;
+                const bodyY = centerY + Math.sin(angle) * distance;
+                
+                // 体のサイズはランダム（中央より小さめ）
+                const bodySize = centralBodySize * (0.6 + Math.random() * 0.4); // 中央の60%～100%
+                
+                // 目のサイズは体の30%～80%でランダム
+                const eyeRatio = 0.3 + Math.random() * 0.5;
+                
+                // 体と目を描画
+                this.drawBodyWithEye(bodyX, bodyY, bodySize, myakuAttributes.color, eyeRatio);
             }
         }
         
@@ -494,67 +497,88 @@ class MyakuMyakuApp {
         // ランダムに色を選択（赤または青）
         const color = Math.random() > 0.5 ? COLORS.RED : COLORS.BLUE;
         
-        // 目の色（赤なら青、青なら赤）
-        const eyeColor = color === COLORS.RED ? COLORS.BLUE : COLORS.RED;
-        
         // ランダムに目のタイプを選択
         const eyeType = Math.random() > 0.5 ? EYE_TYPES.SINGLE : EYE_TYPES.MULTIPLE;
         
-        // ミャクミャクの本体（円）を描画
-        this.ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, size * 0.6, 0, Math.PI * 2);
-        this.ctx.fill();
-        
         if (eyeType === EYE_TYPES.SINGLE) {
-            // 単一の大きな目を描画
-            this.drawEye(centerX, centerY, size * 0.3, eyeColor, color);
+            // 単一の体と目を描画
+            const bodySize = size * 0.6;
+            this.drawBodyWithEye(centerX, centerY, bodySize, color, 0.5); // 目のサイズは体の50%
         } else {
-            // 複数の目を描画
-            // 中央に小さめの目
-            this.drawEye(centerX, centerY, size * 0.2, eyeColor, color);
+            // 複数の体と目を描画
+            // 中央の体は少し小さめに
+            const centralBodySize = size * 0.45; // Singleの時より小さく
             
-            // 周囲に2〜3個の小さな目を追加
-            const numExtraEyes = Math.floor(Math.random() * 2) + 2;
-            for (let i = 0; i < numExtraEyes; i++) {
+            // 中央の体と目を描画（目のサイズは体の30%～80%でランダム）
+            const centralEyeRatio = 0.3 + Math.random() * 0.5; // 30%～80%
+            this.drawBodyWithEye(centerX, centerY, centralBodySize, color, centralEyeRatio);
+            
+            // 周囲に2〜3個の追加の体と目を描画
+            const numExtraBodies = Math.floor(Math.random() * 2) + 2;
+            for (let i = 0; i < numExtraBodies; i++) {
                 // ランダムな角度と距離
-                const angle = (i * (2 * Math.PI / numExtraEyes)) + (Math.random() * 0.5);
-                const distance = size * (0.6 + Math.random() * 0.2);
+                const angle = (i * (2 * Math.PI / numExtraBodies)) + (Math.random() * 0.5);
                 
-                // 小さな目の位置
-                const eyeX = centerX + Math.cos(angle) * distance;
-                const eyeY = centerY + Math.sin(angle) * distance;
-                const eyeSize = size * (0.15 + Math.random() * 0.1);
+                // 顔領域内のランダムな位置に配置
+                const distance = size * (0.4 + Math.random() * 0.3);
                 
-                // 小さな目の描画
-                // 目の色をランダムに選択（メインと同じか逆か）
-                const smallEyeColor = Math.random() > 0.5 ? color : eyeColor;
-                const smallEyePupilColor = smallEyeColor === color ? eyeColor : color;
+                // 体の位置
+                const bodyX = centerX + Math.cos(angle) * distance;
+                const bodyY = centerY + Math.sin(angle) * distance;
                 
-                this.drawEye(eyeX, eyeY, eyeSize, smallEyeColor, smallEyePupilColor);
+                // 体のサイズはランダム（中央より小さめ）
+                const bodySize = centralBodySize * (0.6 + Math.random() * 0.4); // 中央の60%～100%
+                
+                // 目のサイズは体の30%～80%でランダム
+                const eyeRatio = 0.3 + Math.random() * 0.5;
+                
+                // 体と目を描画
+                this.drawBodyWithEye(bodyX, bodyY, bodySize, color, eyeRatio);
             }
         }
     }
     
     // 目の描画（再利用可能な関数）
-    drawEye(x, y, size, circleColor, pupilColor) {
-        // 目の外側の円
-        this.ctx.fillStyle = `rgb(${circleColor.r}, ${circleColor.g}, ${circleColor.b})`;
+    /**
+     * 目を描画する関数
+     * @param {number} x - 目のX座標
+     * @param {number} y - 目のY座標
+     * @param {number} size - 目のサイズ
+     */
+    drawEye(x, y, size) {
+        // 白い部分
+        this.ctx.fillStyle = 'white';
         this.ctx.beginPath();
         this.ctx.arc(x, y, size, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // 白い部分
-        this.ctx.fillStyle = 'white';
+        // 青い瞳
+        this.ctx.fillStyle = `rgb(${COLORS.BLUE.r}, ${COLORS.BLUE.g}, ${COLORS.BLUE.b})`;
         this.ctx.beginPath();
-        this.ctx.arc(x, y, size * 0.7, 0, Math.PI * 2);
+        this.ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+    
+    /**
+     * 体と目を描画する関数
+     * @param {number} x - 体のX座標
+     * @param {number} y - 体のY座標
+     * @param {number} bodySize - 体のサイズ
+     * @param {Object} bodyColor - 体の色
+     * @param {number} eyeRatio - 体に対する目のサイズ比率 (0.3～0.8)
+     */
+    drawBodyWithEye(x, y, bodySize, bodyColor, eyeRatio = 0.5) {
+        // 体（円）を描画
+        this.ctx.fillStyle = `rgb(${bodyColor.r}, ${bodyColor.g}, ${bodyColor.b})`;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, bodySize, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // 瞳（内側の円）
-        this.ctx.fillStyle = `rgb(${pupilColor.r}, ${pupilColor.g}, ${pupilColor.b})`;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, size * 0.4, 0, Math.PI * 2);
-        this.ctx.fill();
+        // 目のサイズを体のサイズに対する比率で計算
+        const eyeSize = bodySize * eyeRatio;
+        
+        // 目を描画
+        this.drawEye(x, y, eyeSize);
     }
 }
 

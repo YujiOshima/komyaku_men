@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ミャクミャクメン テスト</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #000;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #e50012;
+            color: white;
+            border: none;
+            border-radius: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ミャクミャクメン テスト</h1>
+    <canvas id="testCanvas" width="600" height="400"></canvas>
+    <button id="drawButton">描画テスト</button>
+
+    <script>
+        // 定数定義
+        const COLORS = {
+            RED: { r: 230, g: 0, b: 18 },    // EXPO2025 Red
+            BLUE: { r: 0, g: 104, b: 183 }   // EXPO2025 Blue
+        };
+
+        // ミャクミャクの目の種類
+        const EYE_TYPES = {
+            SINGLE: 'single',    // 中央に1つの目
+            MULTIPLE: 'multiple' // 複数の目
+        };
+
+        class TestApp {
+            constructor() {
+                this.canvas = document.getElementById('testCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.drawButton = document.getElementById('drawButton');
+                
+                this.drawButton.addEventListener('click', () => this.drawTest());
+            }
+            
+            drawTest() {
+                // キャンバスをクリア
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // 単一の目のテスト（左側）
+                const singleX = this.canvas.width * 0.25;
+                const singleY = this.canvas.height * 0.5;
+                const singleSize = 80;
+                
+                // 赤い体に単一の目
+                this.drawBodyWithEye(singleX, singleY, singleSize, COLORS.RED, 0.5);
+                
+                // 複数の目のテスト（右側）
+                const multipleX = this.canvas.width * 0.75;
+                const multipleY = this.canvas.height * 0.5;
+                const multipleSize = 60;
+                
+                // 青い体に複数の目
+                // 中央の体
+                this.drawBodyWithEye(multipleX, multipleY, multipleSize, COLORS.BLUE, 0.4);
+                
+                // 周囲の体と目
+                const numExtraBodies = 3;
+                for (let i = 0; i < numExtraBodies; i++) {
+                    const angle = (i * (2 * Math.PI / numExtraBodies));
+                    const distance = multipleSize * 1.5;
+                    
+                    const bodyX = multipleX + Math.cos(angle) * distance;
+                    const bodyY = multipleY + Math.sin(angle) * distance;
+                    const bodySize = multipleSize * 0.7;
+                    
+                    // 目のサイズは体の30%～80%でランダム
+                    const eyeRatio = 0.3 + Math.random() * 0.5;
+                    
+                    this.drawBodyWithEye(bodyX, bodyY, bodySize, COLORS.BLUE, eyeRatio);
+                }
+            }
+            
+            /**
+             * 目を描画する関数
+             * @param {number} x - 目のX座標
+             * @param {number} y - 目のY座標
+             * @param {number} size - 目のサイズ
+             */
+            drawEye(x, y, size) {
+                // 白い部分
+                this.ctx.fillStyle = 'white';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, size, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // 青い瞳
+                this.ctx.fillStyle = `rgb(${COLORS.BLUE.r}, ${COLORS.BLUE.g}, ${COLORS.BLUE.b})`;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            /**
+             * 体と目を描画する関数
+             * @param {number} x - 体のX座標
+             * @param {number} y - 体のY座標
+             * @param {number} bodySize - 体のサイズ
+             * @param {Object} bodyColor - 体の色
+             * @param {number} eyeRatio - 体に対する目のサイズ比率 (0.3～0.8)
+             */
+            drawBodyWithEye(x, y, bodySize, bodyColor, eyeRatio = 0.5) {
+                // 体（円）を描画
+                this.ctx.fillStyle = `rgb(${bodyColor.r}, ${bodyColor.g}, ${bodyColor.b})`;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, bodySize, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // 目のサイズを体のサイズに対する比率で計算
+                const eyeSize = bodySize * eyeRatio;
+                
+                // 目を描画
+                this.drawEye(x, y, eyeSize);
+            }
+        }
+
+        // アプリケーションの初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new TestApp();
+        });
+    </script>
+</body>
+</html>
