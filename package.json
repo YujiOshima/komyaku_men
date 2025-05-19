@@ -1,0 +1,24 @@
+{
+  "name": "myaku_myaku_men",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://ghu_8Wx53HgO2pgw3KVZLX245gYHAORV5g3SU5PJ@github.com/HALmonium/myaku_myaku_men.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HALmonium/myaku_myaku_men/issues"
+  },
+  "homepage": "https://github.com/HALmonium/myaku_myaku_men#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
