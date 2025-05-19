@@ -59,6 +59,15 @@ function calculateIOU(box1, box2) {
     return intersectionArea / unionArea;
 }
 
+// --- 座標・サイズを最大変化量だけ近づける ---
+function approachWithLimit(prev, target, maxDelta) {
+    const diff = target - prev;
+    if (Math.abs(diff) > maxDelta) {
+        return prev + Math.sign(diff) * maxDelta;
+    }
+    return target;
+}
+
 // アプリケーションのメインクラス
 class MyakuMyakuApp {
     constructor() {
@@ -444,41 +453,212 @@ class MyakuMyakuApp {
         const size = Math.max(box.width, box.height) * myakuAttributes.scale;
         
         if (myakuAttributes.eyeType === EYE_TYPES.SINGLE) {
-            // 単一の体と目を描画
+            // bodyStates[0]を単体体用に確保
+            if (!myakuAttributes.bodyStates || myakuAttributes.bodyStates.length !== 1) {
+                myakuAttributes.bodyStates = [{
+                    eyeOffsetX: undefined,
+                    eyeOffsetY: undefined,
+                    drawX: undefined,
+                    drawY: undefined,
+                    prevDrawX: undefined,
+                    prevDrawY: undefined,
+                    eyeX: undefined,
+                    eyeY: undefined,
+                    prevEyeX: undefined,
+                    prevEyeY: undefined
+                }];
+            }
+            const s = myakuAttributes.bodyStates[0];
             const bodySize = size * 0.6;
-            this.drawBodyWithEye(centerX, centerY, bodySize, myakuAttributes.color, 0.5); // 目のサイズは体の50%
+            // 体の中心
+            const idealX = centerX;
+            const idealY = centerY;
+            // 前回の位置を保存
+            s.prevDrawX = s.drawX;
+            s.prevDrawY = s.drawY;
+            s.prevEyeX = s.eyeX;
+            s.prevEyeY = s.eyeY;
+            if (s.drawX === undefined) {
+                s.drawX = idealX;
+                s.drawY = idealY;
+            } else {
+                const maxMove = 5;
+                s.drawX = approachWithLimit(s.drawX, idealX, maxMove);
+                s.drawY = approachWithLimit(s.drawY, idealY, maxMove);
+            }
+            // 目の初期オフセット（体の半径内でランダム）
+            if (s.eyeOffsetX === undefined || s.eyeOffsetY === undefined) {
+                const r = bodySize * 0.5 * Math.random();
+                const theta = Math.random() * Math.PI * 2;
+                s.eyeOffsetX = Math.cos(theta) * r;
+                s.eyeOffsetY = Math.sin(theta) * r;
+                s.eyeX = s.drawX + s.eyeOffsetX;
+                s.eyeY = s.drawY + s.eyeOffsetY;
+            } else {
+                const dx = s.drawX - (s.prevDrawX ?? s.drawX);
+                const dy = s.drawY - (s.prevDrawY ?? s.drawY);
+                s.eyeX = (s.eyeX ?? s.drawX) + dx + (Math.random() - 0.5) * 4; // -2～+2px
+                s.eyeY = (s.eyeY ?? s.drawY) + dy + (Math.random() - 0.5) * 4; // -2～+2px
+            }
+            this.drawBody(s.drawX, s.drawY, bodySize, myakuAttributes.color, 0.5);
+            this.drawEye(s.eyeX, s.eyeY, bodySize * 0.5);
         } else {
             // 複数の体と目を描画
-            // 中央の体は少し小さめに
-            const centralBodySize = size * 0.45; // Singleの時より小さく
-            
-            // 中央の体と目を描画（目のサイズは体の30%～80%でランダム）
-            const centralEyeRatio = 0.3 + Math.random() * 0.5; // 30%～80%
-            this.drawBodyWithEye(centerX, centerY, centralBodySize, myakuAttributes.color, centralEyeRatio);
-            
-            // 周囲に追加の体と目を描画
+            const centralBodySize = size * 0.45;
             const numExtraBodies = myakuAttributes.eyeCount;
-            for (let i = 0; i < numExtraBodies; i++) {
-                // 固定の角度と距離（追跡中は同じパターンを維持）
-                const angle = (i * (2 * Math.PI / numExtraBodies)) + myakuAttributes.rotationOffset;
-                
-                // 顔領域内のランダムな位置に配置
-                const distance = size * (0.4 + Math.random() * 0.3); // 顔領域内に収まるよう調整
-                
-                // 体の位置
-                const bodyX = centerX + Math.cos(angle) * distance;
-                const bodyY = centerY + Math.sin(angle) * distance;
-                
-                // 体のサイズはランダム（中央より小さめ）
-                const bodySize = centralBodySize * (0.6 + Math.random() * 0.4); // 中央の60%～100%
-                
-                // 目のサイズは体の30%～80%でランダム
-                const eyeRatio = 0.3 + Math.random() * 0.5;
-                
-                // 体と目を描画
-                this.drawBodyWithEye(bodyX, bodyY, bodySize, myakuAttributes.color, eyeRatio);
+            // bodyStates: [中央, ...周囲]
+            if (!myakuAttributes.bodyStates || myakuAttributes.bodyStates.length !== numExtraBodies + 1) {
+                // 初期化（中央＋周囲）
+                myakuAttributes.bodyStates = [];
+                // 中央
+                myakuAttributes.bodyStates.push({
+                    eyeRatio: 0.3 + Math.random() * 0.2,
+                    color: Math.random() > 0.5 ? COLORS.RED : COLORS.BLUE,
+                });
+                // 周囲
+                for (let i = 0; i < numExtraBodies; i++) {
+                    myakuAttributes.bodyStates.push({
+                        angle: (i * (2 * Math.PI / numExtraBodies)) + myakuAttributes.rotationOffset,
+                        distanceRatio: 0.4 + Math.random() * 0.3, // 0.4～0.7
+                        bodySizeRatio: 0.6 + Math.random() * 0.4, // 0.6～1.0
+                        eyeRatio: 0.3 + Math.random() * 0.5,
+                        color: Math.random() > 0.5 ? COLORS.RED : COLORS.BLUE,
+                    });
+                }
+            } else {
+                // 更新（最大10%までしか変化しない）
+                // 中央
+                let state = myakuAttributes.bodyStates[0];
+                let newEyeRatio = 0.3 + Math.random() * 0.5;
+                state.eyeRatio = clampChange(state.eyeRatio, newEyeRatio, 0.01);
+                // 色は変えない
+                // 周囲
+                for (let i = 0; i < numExtraBodies; i++) {
+                    let s = myakuAttributes.bodyStates[i+1];
+                    let newDistance = 0.4 + Math.random() * 0.3;
+                    let newBodySize = 0.6 + Math.random() * 0.4;
+                    let newEyeRatio = 0.3 + Math.random() * 0.5;
+                    // --- 角度を前回値±0.03rad以内で変化 ---
+                    let angleDelta = (Math.random() - 0.5) * 0.06; // -0.03～+0.03
+                    s.angle += angleDelta;
+                    // 0～2πの範囲に収める
+                    if (s.angle < 0) s.angle += Math.PI * 2;
+                    if (s.angle > Math.PI * 2) s.angle -= Math.PI * 2;
+                    s.distanceRatio = clampChange(s.distanceRatio, newDistance, 0.1);
+                    s.bodySizeRatio = clampChange(s.bodySizeRatio, newBodySize, 0.1);
+                    s.eyeRatio = clampChange(s.eyeRatio, newEyeRatio, 0.1);
+                    // 色は変えない
+                }
             }
+            // --- 描画 ---
+            // 中央
+            const centralState = myakuAttributes.bodyStates[0];
+            // 前回の体・目の位置を保存
+            centralState.prevDrawX = centralState.drawX;
+            centralState.prevDrawY = centralState.drawY;
+            centralState.prevEyeX = centralState.eyeX;
+            centralState.prevEyeY = centralState.eyeY;
+            if (centralState.drawX === undefined) {
+                centralState.drawX = centerX;
+                centralState.drawY = centerY;
+            } else {
+                const maxMove = 5;
+                centralState.drawX = approachWithLimit(centralState.drawX, centerX, maxMove);
+                centralState.drawY = approachWithLimit(centralState.drawY, centerY, maxMove);
+            }
+            // 目の初期オフセット（体の半径内でランダム）
+            if (centralState.eyeOffsetX === undefined || centralState.eyeOffsetY === undefined) {
+                const r = centralBodySize * 0.5 * Math.random();
+                const theta = Math.random() * Math.PI * 2;
+                centralState.eyeOffsetX = Math.cos(theta) * r;
+                centralState.eyeOffsetY = Math.sin(theta) * r;
+                centralState.eyeX = centralState.drawX + centralState.eyeOffsetX;
+                centralState.eyeY = centralState.drawY + centralState.eyeOffsetY;
+            } else {
+                const dx = centralState.drawX - (centralState.prevDrawX ?? centralState.drawX);
+                const dy = centralState.drawY - (centralState.prevDrawY ?? centralState.drawY);
+                centralState.eyeX = (centralState.eyeX ?? centralState.drawX) + dx;
+                centralState.eyeY = (centralState.eyeY ?? centralState.drawY) + dy;
+            }
+            this.drawBody(centralState.drawX, centralState.drawY, centralBodySize, centralState.color, centralState.eyeRatio);
+            // 目のサイズを体のサイズに対する比率で計算
+            const centralEyeSize = centralBodySize * centralState.eyeRatio;
+            // 目を描画（体中心＋オフセット）
+            this.drawEye(centralState.eyeX, centralState.eyeY, centralEyeSize);
+            // 周囲
+            for (let i = 0; i < numExtraBodies; i++) {
+                const s = myakuAttributes.bodyStates[i+1];
+                // 理想の位置・サイズ
+                const angle = s.angle;
+                const distance = size * s.distanceRatio;
+                const idealX = centerX + Math.cos(angle) * distance;
+                const idealY = centerY + Math.sin(angle) * distance;
+                const idealSize = centralBodySize * s.bodySizeRatio;
+                // 前回値がなければ初期化
+                // 前回の位置を保存
+                s.prevDrawX = s.drawX;
+                s.prevDrawY = s.drawY;
+                s.prevEyeX = s.eyeX;
+                s.prevEyeY = s.eyeY;
+                if (s.drawX === undefined) {
+                    s.drawX = idealX;
+                    s.drawY = idealY;
+                    s.drawSize = idealSize;
+                } else {
+                    // 最大変化量(px)
+                    const maxMove = 5; // 1フレームで最大5pxまで
+                    s.drawX = approachWithLimit(s.drawX, idealX, maxMove);
+                    s.drawY = approachWithLimit(s.drawY, idealY, maxMove);
+                    // サイズもなめらかに
+                    const maxSizeMove = 3; // 1フレームで最大10pxまで
+                    s.drawSize = approachWithLimit(s.drawSize, idealSize, maxSizeMove);
+                }
+                // 目の初期オフセット（体の半径内でランダム）
+                if (s.eyeOffsetX === undefined || s.eyeOffsetY === undefined) {
+                    const r = s.drawSize * 0.5 * Math.random();
+                    const theta = Math.random() * Math.PI * 2;
+                    s.eyeOffsetX = Math.cos(theta) * r;
+                    s.eyeOffsetY = Math.sin(theta) * r;
+                    // 初回は体の中心＋オフセット
+                    s.eyeX = s.drawX + s.eyeOffsetX;
+                    s.eyeY = s.drawY + s.eyeOffsetY;
+                } else {
+                    // 体の移動分だけ目も動かす
+                    const dx = s.drawX - (s.prevDrawX ?? s.drawX);
+                    const dy = s.drawY - (s.prevDrawY ?? s.drawY);
+                    s.eyeX = (s.eyeX ?? s.drawX) + dx;
+                    s.eyeY = (s.eyeY ?? s.drawY) + dy;
+                }
+                this.drawBody(s.drawX, s.drawY, s.drawSize, s.color, s.eyeRatio);
+                // 目のサイズを体のサイズに対する比率で計算
+                const eyeSize = s.drawSize * s.eyeRatio;
+                // 目を描画（体中心＋オフセット）
+                this.drawEye(s.eyeX, s.eyeY, eyeSize);
+            }
+            // 目を描画
+            this.drawEye(centerX, centerY, centralBodySize * centralState.eyeRatio);
+// --- 座標・サイズを最大変化量だけ近づける ---
+function approachWithLimit(prev, target, maxDelta) {
+    const diff = target - prev;
+    if (Math.abs(diff) > maxDelta) {
+        return prev + Math.sign(diff) * maxDelta;
+    }
+    return target;
+}
+
         }
+
+// --- ユーティリティ関数 ---
+// 前回値から最大rateだけしか変化しないようにする
+function clampChange(prev, next, rate) {
+    if (prev === undefined) return next;
+    const maxChange = Math.abs(prev) * rate;
+    if (Math.abs(next - prev) > maxChange) {
+        return prev + Math.sign(next - prev) * maxChange;
+    }
+    return next;
+}
+
         
         // デバッグ情報（開発時のみ）
         // this.ctx.fillStyle = 'white';
@@ -503,16 +683,16 @@ class MyakuMyakuApp {
         if (eyeType === EYE_TYPES.SINGLE) {
             // 単一の体と目を描画
             const bodySize = size * 0.6;
-            this.drawBodyWithEye(centerX, centerY, bodySize, color, 0.5); // 目のサイズは体の50%
+            this.drawBody(centerX, centerY, bodySize, color, 0.5); // 目のサイズは体の50%
+            this.drawEye(centerX, centerY, bodySize * 0.5);
         } else {
             // 複数の体と目を描画
-            // 中央の体は少し小さめに
+             // 中央の体は少し小さめに
             const centralBodySize = size * 0.45; // Singleの時より小さく
             
             // 中央の体と目を描画（目のサイズは体の30%～80%でランダム）
             const centralEyeRatio = 0.3 + Math.random() * 0.5; // 30%～80%
-            this.drawBodyWithEye(centerX, centerY, centralBodySize, color, centralEyeRatio);
-            
+            this.drawBody(centerX, centerY, centralBodySize, color, centralEyeRatio);
             // 周囲に2〜3個の追加の体と目を描画
             const numExtraBodies = Math.floor(Math.random() * 2) + 2;
             for (let i = 0; i < numExtraBodies; i++) {
@@ -533,8 +713,11 @@ class MyakuMyakuApp {
                 const eyeRatio = 0.3 + Math.random() * 0.5;
                 
                 // 体と目を描画
-                this.drawBodyWithEye(bodyX, bodyY, bodySize, color, eyeRatio);
+                this.drawBody(bodyX, bodyY, bodySize, color, eyeRatio);
+                this.drawEye(bodyX, bodyY, bodySize * eyeRatio);
             }
+
+            this.drawEye(centerX, centerY, centralBodySize * centralEyeRatio);
         }
     }
     
@@ -567,18 +750,14 @@ class MyakuMyakuApp {
      * @param {Object} bodyColor - 体の色
      * @param {number} eyeRatio - 体に対する目のサイズ比率 (0.3～0.8)
      */
-    drawBodyWithEye(x, y, bodySize, bodyColor, eyeRatio = 0.5) {
+    drawBody(x, y, bodySize, bodyColor, eyeRatio = 0.5) {
         // 体（円）を描画
         this.ctx.fillStyle = `rgb(${bodyColor.r}, ${bodyColor.g}, ${bodyColor.b})`;
         this.ctx.beginPath();
         this.ctx.arc(x, y, bodySize, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // 目のサイズを体のサイズに対する比率で計算
-        const eyeSize = bodySize * eyeRatio;
-        
-        // 目を描画
-        this.drawEye(x, y, eyeSize);
+
     }
 }
 
