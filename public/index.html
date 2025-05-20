@@ -25,9 +25,13 @@
             </div>
         </div>
         <div class="controls">
-            <button id="startButton">カメラを開始</button>
-            <button id="stopButton" disabled>停止</button>
-        </div>
+    <button id="startButton">カメラを開始</button>
+    <button id="stopButton" disabled>停止</button>
+    <button id="captureButton" disabled>写真撮影</button>
+</div>
+<div class="capture-result" style="text-align:center; margin-top:10px;">
+    <img id="capturedImage" style="max-width:100%; display:none; border:1px solid #ccc;" alt="撮影画像">
+</div>
         <div class="instructions">
             <p>「カメラを開始」ボタンを押して、カメラへのアクセスを許可してください。</p>
             <p>顔が検出されると、自動的にこみゃくが表示されます！</p>
