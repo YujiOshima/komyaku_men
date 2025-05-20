@@ -30,6 +30,21 @@
 - 描画: HTML Canvas API
 - サーバー: Node.js, Express
 
+## ディレクトリ構成
+
+```
+komyaku_men/
+├── public/
+│   ├── index.html
+│   ├── js/
+│   └── css/
+├── server.js
+├── package.json
+└── README.md
+```
+
+> ※ `index.html`、`js`、`css` フォルダは `public` ディレクトリ配下に移動しました。
+
 ## 使用方法
 
 1. リポジトリをクローン
@@ -56,9 +71,8 @@ http://localhost:12000
 
 ## 注意事項
 
-- 最新の主要ブラウザ（Chrome, Firefox, Safari, Edge）での動作を確認しています
+- Chromeでの動作を確認しています
 - カメラへのアクセス許可が必要です
-- HTTPSでの実行を推奨します（一部ブラウザではHTTPでカメラアクセスが制限される場合があります）
 
 ## ライセンス
 
