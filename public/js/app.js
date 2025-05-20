@@ -99,8 +99,14 @@ class MyakuMyakuApp {
         this.nextFaceId = 1;    // 顔に割り当てるID（ユニーク）
         
         // イベントリスナーの設定
-        this.startButton.addEventListener('click', () => this.start());
-        this.stopButton.addEventListener('click', () => this.stop());
+        this.startButton.addEventListener('click', () => {
+            this.captureButton.disabled = false;
+            this.start();
+        });
+        this.stopButton.addEventListener('click', () => {
+            this.captureButton.disabled = true;
+            this.stop();
+        });
         this.retryButton.addEventListener('click', () => this.initializeApp());
         this.captureButton.addEventListener('click', () => this.capturePhoto());
         
@@ -223,9 +229,6 @@ class MyakuMyakuApp {
             this.video.srcObject = this.videoStream;
             
             // ビデオが読み込まれたらキャンバスをリサイズ
-            const enableCaptureButton = () => {
-                this.captureButton.disabled = false;
-            };
             this.video.onloadedmetadata = () => {
                 this.resizeCanvas();
                 this.isRunning = true;
@@ -234,16 +237,10 @@ class MyakuMyakuApp {
                 
                 this.updateStatus('顔検出を開始しました');
                 this.facesDetected = 0;
-                enableCaptureButton();
                 // 顔検出ループの開始
                 this.detectFaces();
             };
-            // スマホ対応: video再生開始時にも有効化
-            this.video.onplay = enableCaptureButton;
-            // すでに再生中の場合も有効化
-            if (!this.video.paused && !this.video.ended) {
-                enableCaptureButton();
-            }
+
         } catch (error) {
             console.error('Failed to access the camera:', error);
             this.showError('カメラへのアクセスに失敗しました', 'カメラの使用許可を確認してください。');
