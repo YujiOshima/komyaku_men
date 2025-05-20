@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 12000; // 環境変数からポート番号を取得、デフォルトは12000
 
 // 静的ファイルの提供
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // CORS設定
 app.use((req, res, next) => {
@@ -15,7 +15,7 @@ app.use((req, res, next) => {
 
 // ルートへのアクセス
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // サーバーの起動

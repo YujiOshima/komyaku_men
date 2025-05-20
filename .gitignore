@@ -17,5 +17,7 @@ Thumbs.db
 # IDE files
 .idea/
 .vscode/
+.firebase/
+.idx/
 *.swp
 *.swo
