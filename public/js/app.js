@@ -81,6 +81,8 @@ class MyakuMyakuApp {
         this.errorDetails = document.getElementById('error-details');
         this.retryButton = document.getElementById('retry-button');
         this.statusMessage = document.getElementById('status-message');
+        this.captureButton = document.getElementById('captureButton');
+        this.capturedImage = document.getElementById('capturedImage');
         
         // キャンバスコンテキスト
         this.ctx = this.overlay.getContext('2d');
@@ -100,6 +102,7 @@ class MyakuMyakuApp {
         this.startButton.addEventListener('click', () => this.start());
         this.stopButton.addEventListener('click', () => this.stop());
         this.retryButton.addEventListener('click', () => this.initializeApp());
+        this.captureButton.addEventListener('click', () => this.capturePhoto());
         
         // ウィンドウリサイズ時の処理
         window.addEventListener('resize', () => this.resizeCanvas());
@@ -228,7 +231,7 @@ class MyakuMyakuApp {
                 
                 this.updateStatus('顔検出を開始しました');
                 this.facesDetected = 0;
-                
+                this.captureButton.disabled = false;
                 // 顔検出ループの開始
                 this.detectFaces();
             };
@@ -258,6 +261,8 @@ class MyakuMyakuApp {
         this.isRunning = false;
         this.startButton.disabled = false;
         this.stopButton.disabled = true;
+        this.captureButton.disabled = true;
+        this.capturedImage.style.display = 'none';
         
         // 追跡情報をリセット
         this.trackedFaces = [];
@@ -774,6 +779,60 @@ function clampChange(prev, next, rate) {
         this.ctx.fill();
         
 
+    }
+
+    /**
+     * 写真撮影ボタン押下時 - 現在の映像フレームを画像として取得し表示
+     */
+    capturePhoto() {
+        if (!this.isRunning || !this.video) return;
+        // overlay(canvas)の表示サイズ
+        const overlayDisplayWidth = this.overlay.width;
+        const overlayDisplayHeight = this.overlay.height;
+        // videoの実サイズ
+        const videoWidth = this.video.videoWidth;
+        const videoHeight = this.video.videoHeight;
+
+        // アスペクト比計算
+        const overlayAspect = overlayDisplayWidth / overlayDisplayHeight;
+        const videoAspect = videoWidth / videoHeight;
+
+        let sx, sy, sWidth, sHeight;
+        if (videoAspect > overlayAspect) {
+            // videoが横長 → 横をクロップ
+            sHeight = videoHeight;
+            sWidth = Math.round(overlayAspect * videoHeight);
+            sx = Math.round((videoWidth - sWidth) / 2);
+            sy = 0;
+        } else {
+            // videoが縦長 → 縦をクロップ
+            sWidth = videoWidth;
+            sHeight = Math.round(videoWidth / overlayAspect);
+            sx = 0;
+            sy = Math.round((videoHeight - sHeight) / 2);
+        }
+
+        // 合成用キャンバスをoverlay表示サイズで作成
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = overlayDisplayWidth;
+        tempCanvas.height = overlayDisplayHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        // videoからアスペクト比維持でクロップして描画
+        tempCtx.drawImage(
+            this.video,
+            sx, sy, sWidth, sHeight,
+            0, 0, overlayDisplayWidth, overlayDisplayHeight
+        );
+        // overlayもそのまま重ねる
+        tempCtx.drawImage(this.overlay, 0, 0, overlayDisplayWidth, overlayDisplayHeight);
+        // ダウンロード
+        const imageDataUrl = tempCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = imageDataUrl;
+        a.download = 'komyaku_capture.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 }
 
