@@ -28,7 +28,7 @@ https://komyaku-men.web.app/
 ## 技術スタック
 
 - フロントエンド: HTML, CSS, JavaScript
-- 顔検出: TensorFlow.js Face Detection API
+- 顔検出: MediaPipe Face Detection API
 - 描画: HTML Canvas API
 - サーバー: Node.js, Express
 
