@@ -1,4 +1,4 @@
-# こみゃく面
+# だれでもこみゃく面 v1.0
 
 https://komyaku-men.web.app/
 
