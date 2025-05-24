@@ -87,6 +87,8 @@ class MyakuMyakuApp {
         this.imageFileInput = document.getElementById('imageFileInput');
         this.loadedImage = document.getElementById('loadedImage');
         this.loadImageButton = document.getElementById('loadImageButton');
+        this.clearImageButton = document.getElementById('clearImageButton');
+        this.downloadButton = document.getElementById('downloadButton');
         
         // キャンバスコンテキスト
         this.ctx = this.overlay.getContext('2d');
@@ -127,6 +129,8 @@ class MyakuMyakuApp {
             }
             this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
             this.loadedImage.classList.remove('hidden');
+            this.clearImageButton.disabled = false;
+            this.downloadButton.disabled = false;
 
             const { image, scaleX, scaleY } = await this.loadImage(file);
             this.intervalId = setInterval(
@@ -134,6 +138,8 @@ class MyakuMyakuApp {
                 1500
             );
         });
+        this.clearImageButton.addEventListener('click', () => this.clearImage());
+        this.downloadButton.addEventListener('click', () => this.downlodaImage());
 
         // ウィンドウリサイズ時の処理
         window.addEventListener('resize', () => this.resizeCanvas());
@@ -968,6 +974,69 @@ function clampChange(prev, next, rate) {
             // 一時的なエラーの場合は再実行
             this.detectFacesImage(face, scaleX, scaleY);
         }
+    }
+
+    downlodaImage() {
+        // overlay(canvas)の表示サイズ
+        const overlayDisplayWidth = this.overlay.width;
+        const overlayDisplayHeight = this.overlay.height;
+        // imageの実サイズ
+        const imageWidth = this.loadedImage.naturalWidth;
+        const imageHeight = this.loadedImage.naturalHeight;
+
+        // アスペクト比計算
+        const overlayAspect = overlayDisplayWidth / overlayDisplayHeight;
+        const imageAspect = imageWidth / imageHeight;
+
+        let sx, sy, sWidth, sHeight;
+        if (imageAspect > overlayAspect) {
+            // imageが横長 → 横をクロップ
+            sHeight = imageHeight;
+            sWidth = Math.round(overlayAspect * imageHeight);
+            sx = Math.round((imageWidth - sWidth) / 2);
+            sy = 0;
+        } else {
+            // imageが縦長 → 縦をクロップ
+            sHeight = Math.round(overlayAspect * imageWidth);
+            sWidth = imageWidth;
+            sx = 0;
+            sy = Math.round((imageHeight - sHeight) / 2);
+        }
+
+        // 合成用キャンバスをoverlay表示サイズで作成
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = overlayDisplayWidth;
+        tempCanvas.height = overlayDisplayHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        // 画像からアスペクト比維持でクロップして描画
+        tempCtx.drawImage(
+            this.loadedImage,
+            sx, sy, sWidth, sHeight,
+            0, 0, overlayDisplayWidth, overlayDisplayHeight
+        );
+        // overlayもそのまま重ねる
+        tempCtx.drawImage(this.overlay, 0, 0, overlayDisplayWidth, overlayDisplayHeight);
+        // ダウンロード
+        const imageDataUrl = tempCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = imageDataUrl;
+        a.download = 'komyaku_capture.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    clearImage() {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+        this.imageFileInput.value = '';
+        this.loadedImage.src = '';
+        this.loadedImage.classList.add('hidden');
+        this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+
+        this.clearImageButton.disabled = true;
+        this.downloadButton.disabled = true;
+
     }
 }
 
