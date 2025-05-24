@@ -135,6 +135,7 @@ class MyakuMyakuApp {
                 faceDetection.SupportedModels.MediaPipeFaceDetector,
                 { 
                     runtime: 'tfjs',
+                    maxFaces: 3,
                     modelType: 'short' // 軽量モデルを使用
                 }
             );
