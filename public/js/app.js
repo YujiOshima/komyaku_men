@@ -481,8 +481,9 @@ class MyakuMyakuApp {
      * @param {Object} trackedFace - 追跡中の顔情報
      * @param {number} [scaleX=1] 元画像の縦の縮尺比
      * @param {number} [scaleY=1] 元画像の横の縮尺比
+     * @param {number} [scale=1] 面のサイズを調整する縮尺比
      */
-    drawTrackedMyakuMyaku(trackedFace, scaleX = 1, scaleY = 1) {
+    drawTrackedMyakuMyaku(trackedFace, scaleX = 1, scaleY = 1, scale = 1) {
         const { box, myakuAttributes } = trackedFace;
         
         const scaledBox = {
@@ -497,7 +498,7 @@ class MyakuMyakuApp {
         const centerY = scaledBox.yMin + scaledBox.height / 2;
         
         // 顔のサイズに基づいてミャクミャクのサイズを決定
-        const size = Math.max(scaledBox.width, scaledBox.height) * myakuAttributes.scale;
+        const size = Math.max(scaledBox.width, scaledBox.height) * myakuAttributes.scale * scale;
         
         // --- 複数目・体モードのとき、3～8秒間隔で周囲の目と体の数を1～3個でランダムに増減 ---
         if (myakuAttributes.eyeType === EYE_TYPES.MULTIPLE) {
@@ -953,7 +954,7 @@ function clampChange(prev, next, rate) {
 
             // 追跡中の各顔に対してミャクミャクを描画
             trackedFaces.forEach(face => {
-                this.drawTrackedMyakuMyaku(face, scaleX, scaleY);
+                this.drawTrackedMyakuMyaku(face, scaleX, scaleY, 1.1);
             });
 
         } catch (error) {
