@@ -106,6 +106,7 @@ class MyakuMyakuApp {
         
         // イベントリスナーの設定
         this.startButton.addEventListener('click', () => {
+            this.clearImage();
             this.captureButton.disabled = false;
             this.start();
         });
@@ -123,19 +124,13 @@ class MyakuMyakuApp {
                 return;
             }
 
+            this.initializeLoadImage();
             const file = this.imageFileInput.files[0];
-            if (this.intervalId) {
-                clearInterval(this.intervalId);
-            }
-            this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
-            this.loadedImage.classList.remove('hidden');
-            this.clearImageButton.disabled = false;
-            this.downloadButton.disabled = false;
-
             const { image, scaleX, scaleY } = await this.loadImage(file);
+
             this.intervalId = setInterval(
                 async () => this.detectFacesImage(image, scaleX, scaleY),
-                1500
+                1000
             );
         });
         this.clearImageButton.addEventListener('click', () => this.clearImage());
@@ -1026,17 +1021,30 @@ function clampChange(prev, next, rate) {
         document.body.removeChild(a);
     }
 
-    clearImage() {
-        clearInterval(this.intervalId);
+    initializeLoadImage() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+        }
         this.intervalId = null;
+        this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+        
+        this.loadedImage.classList.remove('hidden');
+        this.clearImageButton.disabled = false;
+        this.downloadButton.disabled = false;
+    }
+
+    clearImage() {
+        if(this.intervalId) {
+            clearInterval(this.intervalId);
+        }
+        this.intervalId = null;
+        this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+
         this.imageFileInput.value = '';
         this.loadedImage.src = '';
         this.loadedImage.classList.add('hidden');
-        this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
-
         this.clearImageButton.disabled = true;
         this.downloadButton.disabled = true;
-
     }
 }
 
