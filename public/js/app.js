@@ -83,6 +83,10 @@ class MyakuMyakuApp {
         this.statusMessage = document.getElementById('status-message');
         this.captureButton = document.getElementById('captureButton');
         this.capturedImage = document.getElementById('capturedImage');
+        // DOM要素 - 画像用
+        this.imageFileInput = document.getElementById('imageFileInput');
+        this.loadedImage = document.getElementById('loadedImage');
+        this.loadImageButton = document.getElementById('loadImageButton');
         
         // キャンバスコンテキスト
         this.ctx = this.overlay.getContext('2d');
@@ -110,6 +114,27 @@ class MyakuMyakuApp {
         this.retryButton.addEventListener('click', () => this.initializeApp());
         this.captureButton.addEventListener('click', () => this.capturePhoto());
         
+        // イベントリスナーの設定 - 画像用
+        this.intervalId = null;
+        this.loadImageButton.addEventListener('click', async () => {
+            if (this.imageFileInput.files.length != 1) {
+                return;
+            }
+
+            const file = this.imageFileInput.files[0];
+            if (this.intervalId) {
+                clearInterval(this.intervalId);
+            }
+            this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+            this.loadedImage.classList.remove('hidden');
+
+            const { image, scaleX, scaleY } = await this.loadImage(file);
+            this.intervalId = setInterval(
+                async () => this.detectFacesImage(image, scaleX, scaleY),
+                1500
+            );
+        });
+
         // ウィンドウリサイズ時の処理
         window.addEventListener('resize', () => this.resizeCanvas());
         
@@ -453,16 +478,25 @@ class MyakuMyakuApp {
     /**
      * 追跡中の顔に対してミャクミャクを描画
      * @param {Object} trackedFace - 追跡中の顔情報
+     * @param {number} [scaleX=1] 元画像の縦の縮尺比
+     * @param {number} [scaleY=1] 元画像の横の縮尺比
      */
-    drawTrackedMyakuMyaku(trackedFace) {
+    drawTrackedMyakuMyaku(trackedFace, scaleX = 1, scaleY = 1) {
         const { box, myakuAttributes } = trackedFace;
         
+        const scaledBox = {
+            xMin: box.xMin * scaleX,
+            yMin: box.yMin * scaleY,
+            width: box.width * scaleX,
+            height: box.height * scaleY
+        };
+
         // 顔の中心座標
-        const centerX = box.xMin + box.width / 2;
-        const centerY = box.yMin + box.height / 2;
+        const centerX = scaledBox.xMin + scaledBox.width / 2;
+        const centerY = scaledBox.yMin + scaledBox.height / 2;
         
         // 顔のサイズに基づいてミャクミャクのサイズを決定
-        const size = Math.max(box.width, box.height) * myakuAttributes.scale;
+        const size = Math.max(scaledBox.width, scaledBox.height) * myakuAttributes.scale;
         
         // --- 複数目・体モードのとき、3～8秒間隔で周囲の目と体の数を1～3個でランダムに増減 ---
         if (myakuAttributes.eyeType === EYE_TYPES.MULTIPLE) {
@@ -840,6 +874,100 @@ function clampChange(prev, next, rate) {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    }
+    
+    async loadImage(file) {
+        if (!file) {
+            throw new Error('画像ファイルが指定されていません。');
+        }
+
+        const reader = new FileReader();
+
+        // FileReaderの読み込み完了を待つPromise
+        const readFile = new Promise((resolve, reject) => {
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました。'));
+            reader.readAsDataURL(file);
+        });
+
+        const imageDataUrl = await readFile;
+
+        const image = new Image();
+
+        // Imageの読み込み完了を待つPromise
+        const loadImagePromise = new Promise((resolve, reject) => {
+            image.onload = () => resolve();
+            image.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
+            image.src = imageDataUrl;
+        });
+
+        await loadImagePromise;
+
+        this.loadedImage.src = image.src;
+
+        const originalWidth = image.naturalWidth;
+        const originalHeight = image.naturalHeight;
+
+        // this.loadedImageの読み込み完了を待つPromise
+        const loadLoadedImagePromise = new Promise((resolve) => {
+            this.loadedImage.onload = () => resolve();
+        });
+
+        await loadLoadedImagePromise;
+
+        const renderedWidth = this.loadedImage.clientWidth;
+        const renderedHeight = this.loadedImage.clientHeight;
+        const scaleX = renderedWidth / originalWidth;
+        const scaleY = renderedHeight / originalHeight;
+
+        console.log(`画像を読み込みました。width: ${renderedWidth}, height: ${renderedHeight}`);
+        return { image: image, scaleX: scaleX, scaleY: scaleY };
+    }
+
+    /**
+     * 画像ファイルに対してミャクミャクを描画
+     */
+    async detectFacesImage(image, scaleX, scaleY) {
+        try {
+            // 顔検出の実行
+            const detectedFaces = await this.faceDetector.estimateFaces(image);
+
+            // キャンバスのクリア
+            this.ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+
+            // 検出された顔の数を更新
+            if (detectedFaces.length > 0 && this.facesDetected === 0) {
+                this.updateStatus(`${detectedFaces.length}人の顔を検出しました！`);
+                this.facesDetected = detectedFaces.length;
+            } else if (detectedFaces.length > this.facesDetected) {
+                this.updateStatus(`${detectedFaces.length}人の顔を検出しました！`);
+                this.facesDetected = detectedFaces.length;
+            } else if (detectedFaces.length === 0 && this.facesDetected > 0) {
+                this.updateStatus('顔を検出できません。カメラに顔を向けてください。');
+                this.facesDetected = 0;
+            }
+
+            // 追跡情報を更新
+            const trackedFaces = this.updateTrackedFaces(detectedFaces);
+
+            // 追跡中の各顔に対してミャクミャクを描画
+            trackedFaces.forEach(face => {
+                this.drawTrackedMyakuMyaku(face, scaleX, scaleY);
+            });
+
+        } catch (error) {
+            console.error('Face detection error:', error);
+
+            // 深刻なエラーの場合はユーザーに通知
+            if (error.message && error.message.includes('model')) {
+                this.showError('顔検出モデルでエラーが発生しました', error.message);
+                this.stop();
+                return;
+            }
+
+            // 一時的なエラーの場合は再実行
+            this.detectFacesImage(face, scaleX, scaleY);
+        }
     }
 }
 

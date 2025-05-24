@@ -40,7 +40,7 @@ h1 {
     background-color: #000;
 }
 
-#video, #overlay {
+#video, #loadedImage, #overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -49,7 +49,7 @@ h1 {
     object-fit: cover;
 }
 
-#video {
+#video, #loadedImage {
     background-color: #000;
     z-index: 1;
 }

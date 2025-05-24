@@ -13,6 +13,7 @@
         <h1>だれでもこみゃく面 v1.0</h1>
         <div class="video-container">
             <video id="video" playsinline autoplay muted></video>
+            <img id="loadedImage" class="hidden" />
             <canvas id="overlay"></canvas>
             <div id="loading" class="loading hidden">
                 <div class="spinner"></div>
@@ -24,11 +25,15 @@
                 <button id="retry-button">再試行</button>
             </div>
         </div>
-        <div class="controls">
-    <button id="startButton">カメラを開始</button>
-    <button id="stopButton" disabled>停止</button>
-    <button id="captureButton" disabled>写真撮影</button>
-</div>
+    <div class="controls">
+        <button id="startButton">カメラを開始</button>
+        <button id="stopButton" disabled>停止</button>
+        <button id="captureButton" disabled>写真撮影</button>
+    </div>
+    <div>
+        <input type="file" id="imageFileInput" accept="image/*">
+        <button id="loadImageButton">画像取り込み</button>
+    </div>
 <div class="capture-result" style="text-align:center; margin-top:10px;">
     <img id="capturedImage" style="max-width:100%; display:none; border:1px solid #ccc;" alt="撮影画像">
 </div>
