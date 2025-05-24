@@ -813,8 +813,8 @@ function clampChange(prev, next, rate) {
             sy = 0;
         } else {
             // videoが縦長 → 縦をクロップ
-            sWidth = videoWidth;
             sHeight = Math.round(videoWidth / overlayAspect);
+            sWidth = videoWidth;
             sx = 0;
             sy = Math.round((videoHeight - sHeight) / 2);
         }
