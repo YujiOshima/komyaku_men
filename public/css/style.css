@@ -184,6 +184,42 @@ button:disabled {
     box-shadow: 0 2px 4px rgba(230, 0, 18, 0.2);
 }
 
+/* ファイル選択インプットの見た目を整える */
+input[type="file"] {
+    padding: 10px;
+    font-size: 16px;
+}
+
+/* アコーディオンのスタイル */
+.image-accordion {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    margin: 10px 0;
+    padding: 10px 0;
+    overflow: hidden; /* 角丸を適用するために必要 */
+}
+.image-accordion > summary {
+    background-color: #ddd;
+    padding: 15px 20px;
+    cursor: pointer;
+    font-weight: bold;
+    border-bottom: 1px solid #ddd;
+    list-style: none; /* デフォルトの矢印を非表示にする */
+    position: relative; /* カスタム矢印用 */
+}
+.image-accordion > summary::-webkit-details-marker {
+    display: none;
+}
+.image-accordion > summary::before {
+    content: '▶'; /* 閉じているときの矢印 */
+    position: absolute;
+    right: 20px;
+    transition: transform 0.2s ease-in-out;
+}
+.image-accordion[open] > summary::before {
+    transform: rotate(90deg); /* 開いているときの矢印 */
+}
+
 /* レスポンシブデザイン */
 @media (max-width: 850px) {
     .video-container {

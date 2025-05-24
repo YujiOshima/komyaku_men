@@ -30,14 +30,17 @@
         <button id="stopButton" disabled>停止</button>
         <button id="captureButton" disabled>写真撮影</button>
     </div>
-    <div>
-        <input type="file" id="imageFileInput" accept="image/*">
-        <button id="loadImageButton">画像取り込み</button>
-    </div>
-    <div>
-        <button id="clearImageButton" disabled>画像クリア</button>
-        <button id="downloadButton" disabled>画像ダウンロード</button>
-    </div>
+    <details class="image-accordion">
+        <summary>画像で楽しむ</summary>
+        <div>
+            <input type="file" id="imageFileInput" accept="image/*">
+        </div>
+        <div>
+            <button id="loadImageButton">画像取り込み</button>
+            <button id="clearImageButton" disabled>画像クリア</button>
+            <button id="downloadButton" disabled>画像ダウンロード</button>
+        </div>
+    </details>
 <div class="capture-result" style="text-align:center; margin-top:10px;">
     <img id="capturedImage" style="max-width:100%; display:none; border:1px solid #ccc;" alt="撮影画像">
 </div>
